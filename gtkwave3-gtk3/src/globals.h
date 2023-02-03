@@ -66,6 +66,8 @@
 #include "wavealloca.h"
 #include "jrb.h"
 #include "extload.h"
+#include <sys/socket.h>
+#include <arpa/inet.h>
 
 #ifdef _WAVE_HAVE_JUDY
 #include <Judy.h>
@@ -1342,6 +1344,11 @@ char do_zoom_center; /* from zoombuttons.c 720 */
 char do_initial_zoom_fit; /* from zoombuttons.c 721 */
 char do_initial_zoom_fit_used;
 
+/*
+ *  udp target
+ */
+int udp_sockfd;
+struct sockaddr_in  *udp_servaddr;
 };
 
 

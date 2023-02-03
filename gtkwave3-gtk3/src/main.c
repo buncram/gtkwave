@@ -17,6 +17,7 @@
 #include <gtk/gtk.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #ifdef __MINGW32__
 #include <windows.h>
@@ -83,6 +84,9 @@
 #ifdef MAC_INTEGRATION
 #include <gtkosxapplication.h>
 #endif
+
+#include <sys/socket.h>
+#include <arpa/inet.h>
 
 char *gtkwave_argv0_cached = NULL;
 
@@ -710,6 +714,10 @@ char fast_exit=0;
 char opt_errors_encountered=0;
 char is_missing_file = 0;
 
+char *inet_addr_str = NULL;
+int port = 0;
+int colon_offset = 0;
+
 char *wname=NULL;
 char *override_rc=NULL;
 char *scriptfile=NULL;
@@ -956,6 +964,8 @@ if(!GLOBALS)
 	GLOBALS->main_popup_menu_button = old_g->main_popup_menu_button;
 	GLOBALS->top_table = old_g->top_table;
 #endif
+	GLOBALS->udp_sockfd = -1;
+	GLOBALS->udp_servaddr = NULL;
 
         strcpy2_into_new_context(GLOBALS, &GLOBALS->sst_exclude_filename, &old_g->sst_exclude_filename);
 
@@ -1086,10 +1096,11 @@ while (1)
 		{"sstexclude", 1, 0, '5'},
 		{"dark", 0, 0, '6'},
 		{"saveonexit", 0, 0, '7'},
+		{"udptarget", 1, 0, 'u'},
                 {0, 0, 0, 0}
                 };
 
-        c = getopt_long (argc, argv, "zf:Fon:a:Ar:dl:s:e:c:t:NS:vVhxX:MD:IgCLR:P:O:WT:1:2:34:5:67", long_options, &option_index);
+        c = getopt_long (argc, argv, "zf:Fon:a:Ar:dl:s:e:c:t:NS:vVhxX:MD:IgCLR:P:O:WT:1:2:34:5:67u:", long_options, &option_index);
 
         if (c == -1) break;     /* no more args */
 
@@ -1308,6 +1319,43 @@ while (1)
 
 		case '6':
 			GLOBALS->use_dark = TRUE;
+			break;
+
+		case 'u':
+			for(; colon_offset < strlen(optarg); colon_offset++) {
+				if (optarg[colon_offset] == ':') {
+					break;
+				}
+			}
+			if (colon_offset == 0 || colon_offset == strlen(optarg)) {
+				fprintf(stderr, "GTKWAVE | UDP server target should be specified as <server>:port>; ignoring argument\n");
+				break;
+			}
+			inet_addr_str = malloc_2(colon_offset + 1);
+			strncpy(inet_addr_str, optarg, colon_offset);
+			inet_addr_str[colon_offset] = '\0';
+			port = atoi(&optarg[colon_offset + 1]);
+			fprintf(stderr, "DEBUG: got UDP arg %s:%d", inet_addr_str, port);
+			GLOBALS->udp_sockfd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+			if(GLOBALS->udp_sockfd < 0){
+				fprintf(stderr, "GTKWAVE | Can't open socket to %s:%d\n", inet_addr_str, port);
+				break;
+			}
+			GLOBALS->udp_servaddr = malloc_2(sizeof(struct sockaddr_in));
+			memset(GLOBALS->udp_servaddr, 0, sizeof(struct sockaddr_in));
+			GLOBALS->udp_servaddr->sin_family = AF_INET;
+			GLOBALS->udp_servaddr->sin_port = htons(port);
+			GLOBALS->udp_servaddr->sin_addr.s_addr = inet_addr(inet_addr_str);
+
+			/*
+			if(bind(GLOBALS->udp_sockfd, GLOBALS->udp_servaddr, sizeof(struct sockaddr_in)) < 0){
+				fprintf(stderr, "GKTWAVE | Couldn't bind to %s:%d\n", inet_addr_str, port);
+				GLOBALS->udp_sockfd = -1;
+				break;
+			} */
+			printf("UDP is ready to use, fd is %d", GLOBALS->udp_sockfd);
+			fflush(stdout);
+			fflush(stderr);
 			break;
 
 		case '7':

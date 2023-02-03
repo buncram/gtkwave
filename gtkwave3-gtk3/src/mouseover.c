@@ -18,6 +18,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
 #include "main.h"
 #include "currenttime.h"
 #include "color.h"
@@ -188,6 +190,16 @@ if(t->name)
 						{
 						vlen=font_engine_string_measure(GLOBALS->wavefont,str);
 						*asciivalue=str;
+						if (GLOBALS->udp_sockfd != -1) {
+							char udp_msg[64];
+							char msg_len = strlen(str) < 62 ? strlen(str) : 62;
+							udp_msg[0] = 2; // designates the value type
+							udp_msg[1] = msg_len;
+							strncpy(&udp_msg[2], str, 62);
+							sendto(
+								GLOBALS->udp_sockfd, udp_msg, msg_len + 2, 0,
+								GLOBALS->udp_servaddr, sizeof(struct sockaddr_in));
+							}
 						}
 						else
 						{
@@ -367,6 +379,16 @@ if(t)
                 }
 
 	name_charlen = t->name ? strlen(t->name) : 0;
+	if (GLOBALS->udp_sockfd != -1) {
+		char udp_msg[64];
+		char msg_len = strlen(t->name) < 62 ? strlen(t->name) : 62;
+		udp_msg[0] = 1; // designates the name type
+		udp_msg[1] = msg_len;
+		strncpy(&udp_msg[2], t->name, 62);
+		sendto(
+			GLOBALS->udp_sockfd, udp_msg, msg_len + 2, 0,
+			GLOBALS->udp_servaddr, sizeof(struct sockaddr_in));
+	}
 	if(name_charlen)
 		{
 		int len = determine_trace_flags(t, flag_string);
