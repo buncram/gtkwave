@@ -1,0 +1,1 @@
+sudo apt-get install libtcl8.6 tcl8.6-dev libtk8.6 tk8.6 tk8.6-dev gperf zlib1g-dev libbz2-dev liblzma-dev libgtk2.0-dev
